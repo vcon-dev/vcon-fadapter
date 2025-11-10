@@ -5,7 +5,8 @@ import logging
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Tuple
-from vcon import Vcon, Party
+from vcon import Vcon
+from vcon.party import Party
 
 
 logger = logging.getLogger(__name__)

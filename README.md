@@ -2,6 +2,12 @@
 
 A file system monitoring adapter that watches for fax images, extracts sender/receiver information from filenames, creates vCon objects with file metadata, and posts them to a configurable HTTP conserver endpoint.
 
+> **Note**: After pushing to GitHub, add status badges to this README by replacing `USERNAME` and `REPO` in:
+> ```markdown
+> [![Tests](https://github.com/USERNAME/REPO/actions/workflows/test.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/test.yml)
+> [![Lint](https://github.com/USERNAME/REPO/actions/workflows/lint.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/lint.yml)
+> ```
+
 ## Features
 
 - **File System Monitoring**: Automatically detects new fax image files using `watchdog`
@@ -201,7 +207,43 @@ uv pip install -e ".[dev]"
 python main.py
 ```
 
+### Running Tests
+
+```bash
+# Run all tests (using uv to ensure correct environment)
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=fax_adapter --cov-report=html
+
+# Run specific test file
+uv run pytest tests/test_config.py
+
+# Run tests in verbose mode
+uv run pytest -v
+
+# Or activate the virtual environment first
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pytest
+```
+
+### Continuous Integration
+
+This project uses GitHub Actions to automatically run tests on:
+- Push to `main`, `master`, or `develop` branches
+- Pull requests to `main`, `master`, or `develop` branches
+
+The CI workflow:
+- Tests on multiple Python versions (3.10, 3.11, 3.12)
+- Tests on Ubuntu and macOS
+- Runs code coverage reports
+- Runs linting checks (ruff and black)
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting pull requests.
+
 ## License
 
-[Add your license information here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
