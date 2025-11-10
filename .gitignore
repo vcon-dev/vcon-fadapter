@@ -50,6 +50,10 @@ venv.bak/
 .venv/
 .venv.bak/
 
+# uv
+.uv/
+uv.lock
+
 # Editor settings
 .vscode/
 .idea/

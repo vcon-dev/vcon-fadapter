@@ -14,13 +14,48 @@ A file system monitoring adapter that watches for fax images, extracts sender/re
 
 ## Installation
 
-1. Clone or navigate to the repository:
+### Prerequisites
+
+- Python 3.10 or higher
+- [uv](https://github.com/astral-sh/uv) (recommended) or pip
+
+### Option 1: Using uv (Recommended)
+
+[uv](https://github.com/astral-sh/uv) is a fast Python package installer and resolver. Install it first:
+
 ```bash
-cd vcon-fadapter
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-2. Install dependencies:
+Then set up the project:
+
 ```bash
+# Clone or navigate to the repository
+cd vcon-fadapter
+
+# Create a virtual environment and install dependencies
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install the project and its dependencies
+uv pip install -e .
+
+# Or use uv sync (requires uv.lock - generate with: uv lock)
+# uv sync
+```
+
+### Option 2: Using pip
+
+```bash
+# Clone or navigate to the repository
+cd vcon-fadapter
+
+# Create a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
@@ -149,9 +184,21 @@ vcon-fadapter/
 │   ├── tracker.py         # State tracking
 │   └── monitor.py         # File system monitoring
 ├── .env.example           # Example configuration
-├── requirements.txt       # Dependencies
+├── .python-version        # Python version specification
+├── pyproject.toml         # Project configuration and dependencies
+├── requirements.txt       # Dependencies (legacy, use pyproject.toml)
 ├── README.md             # This file
 └── main.py               # Entry point
+```
+
+### Development Setup with uv
+
+```bash
+# Install development dependencies
+uv pip install -e ".[dev]"
+
+# Run the adapter
+python main.py
 ```
 
 ## License
