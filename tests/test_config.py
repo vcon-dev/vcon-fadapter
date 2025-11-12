@@ -2,7 +2,7 @@
 
 import os
 import pytest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch, mock_open, MagicMock
 from fax_adapter.config import Config
 
 
@@ -12,20 +12,23 @@ class TestConfig:
     def test_config_required_variables_missing(self):
         """Test that missing required variables raise ValueError."""
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError, match="WATCH_DIRECTORY"):
-                Config()
+            with patch("fax_adapter.config.load_dotenv", MagicMock()):
+                with pytest.raises(ValueError, match="WATCH_DIRECTORY"):
+                    Config()
     
     def test_config_watch_directory_missing(self):
         """Test that missing WATCH_DIRECTORY raises ValueError."""
         with patch.dict(os.environ, {"CONSERVER_URL": "http://test.com"}, clear=True):
-            with pytest.raises(ValueError, match="WATCH_DIRECTORY"):
-                Config()
+            with patch("fax_adapter.config.load_dotenv", MagicMock()):
+                with pytest.raises(ValueError, match="WATCH_DIRECTORY"):
+                    Config()
     
     def test_config_conserver_url_missing(self):
         """Test that missing CONSERVER_URL raises ValueError."""
         with patch.dict(os.environ, {"WATCH_DIRECTORY": "/tmp"}, clear=True):
-            with pytest.raises(ValueError, match="CONSERVER_URL"):
-                Config()
+            with patch("fax_adapter.config.load_dotenv", MagicMock()):
+                with pytest.raises(ValueError, match="CONSERVER_URL"):
+                    Config()
     
     def test_config_minimal_required(self, env_vars):
         """Test config with minimal required variables."""

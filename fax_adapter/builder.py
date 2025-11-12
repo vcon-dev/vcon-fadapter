@@ -82,7 +82,7 @@ class VconBuilder:
             vcon = Vcon.build_new()
             
             # Set creation time from file modification time
-            vcon.created_at = creation_time.isoformat()
+            vcon.vcon_dict["created_at"] = creation_time.isoformat()
             
             # Add parties
             sender_party = Party(tel=sender)
@@ -100,10 +100,13 @@ class VconBuilder:
             vcon.add_attachment(
                 type="fax_image",
                 body=image_base64,
-                encoding="base64",
-                filename=path.name,
-                mimetype=mime_type
+                encoding="base64"
             )
+            
+            # Add filename and mimetype to the attachment dictionary
+            attachment = vcon.vcon_dict["attachments"][-1]
+            attachment["filename"] = path.name
+            attachment["mimetype"] = mime_type
             
             # Add metadata tags
             vcon.add_tag("source", "fax_adapter")

@@ -171,8 +171,17 @@ class TestFaxAdapter:
         adapter.config.process_existing = True
         adapter.monitor.get_existing_files.return_value = []
         
-        with patch("time.sleep", side_effect=KeyboardInterrupt):
-            adapter.start()
+        # Use a thread to stop the adapter after a short delay
+        import threading
+        def stop_adapter():
+            import time
+            time.sleep(0.1)
+            adapter.running = False
+        
+        stop_thread = threading.Thread(target=stop_adapter, daemon=True)
+        stop_thread.start()
+        
+        adapter.start()
         
         adapter.monitor.start.assert_called_once()
         assert adapter.running is False
@@ -203,15 +212,18 @@ class TestMainFunction:
         os.makedirs(temp_dir, exist_ok=True)
         
         with patch.dict(os.environ, env_vars, clear=True), \
+             patch("fax_adapter.config.load_dotenv", MagicMock()), \
              patch("main.FaxAdapter") as mock_adapter_class, \
              patch("main.signal.signal"):
             mock_adapter = Mock()
+            # Ensure start() is a no-op Mock that returns immediately
+            mock_adapter.start = Mock()
             mock_adapter_class.return_value = mock_adapter
             
             from main import main
             
-            with patch("time.sleep", side_effect=KeyboardInterrupt):
-                main()
+            # main() should complete immediately since start() is a Mock
+            main()
             
             mock_adapter.start.assert_called_once()
     
@@ -219,7 +231,8 @@ class TestMainFunction:
         """Test main with configuration error."""
         env_vars.pop("WATCH_DIRECTORY", None)
         
-        with patch.dict(os.environ, env_vars, clear=True):
+        with patch.dict(os.environ, env_vars, clear=True), \
+             patch("fax_adapter.config.load_dotenv", MagicMock()):
             from main import main
             
             with pytest.raises(SystemExit):
@@ -231,6 +244,7 @@ class TestMainFunction:
         os.makedirs(temp_dir, exist_ok=True)
         
         with patch.dict(os.environ, env_vars, clear=True), \
+             patch("fax_adapter.config.load_dotenv", MagicMock()), \
              patch("main.FaxAdapter", side_effect=Exception("Fatal error")):
             from main import main
             
@@ -243,15 +257,18 @@ class TestMainFunction:
         os.makedirs(temp_dir, exist_ok=True)
         
         with patch.dict(os.environ, env_vars, clear=True), \
+             patch("fax_adapter.config.load_dotenv", MagicMock()), \
              patch("main.FaxAdapter") as mock_adapter_class, \
              patch("main.signal.signal") as mock_signal:
             mock_adapter = Mock()
+            # Ensure start() is a no-op Mock that returns immediately
+            mock_adapter.start = Mock()
             mock_adapter_class.return_value = mock_adapter
             
             from main import main
             
-            with patch("time.sleep", side_effect=KeyboardInterrupt):
-                main()
+            # main() should complete immediately since start() is a Mock
+            main()
             
             # Should set up signal handlers
             assert mock_signal.call_count == 2

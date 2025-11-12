@@ -1,6 +1,7 @@
 """HTTP poster to send vCons to conserver endpoint."""
 
 import logging
+import requests
 from typing import Dict, Optional
 from vcon import Vcon
 
@@ -33,27 +34,30 @@ class HttpPoster:
         try:
             logger.info(f"Posting vCon {vcon.uuid} to {self.url}")
             
-            response = vcon.post_to_url(self.url, headers=self.headers)
+            # Convert vCon to JSON
+            vcon_json = vcon.to_json()
+            
+            # POST to endpoint
+            response = requests.post(
+                self.url,
+                data=vcon_json,
+                headers=self.headers,
+                timeout=30
+            )
             
             # Check if response indicates success
-            # post_to_url may return different types, check status code if available
-            if hasattr(response, 'status_code'):
-                if response.status_code >= 200 and response.status_code < 300:
-                    logger.info(
-                        f"Successfully posted vCon {vcon.uuid} "
-                        f"(status: {response.status_code})"
-                    )
-                    return True
-                else:
-                    logger.error(
-                        f"Failed to post vCon {vcon.uuid} "
-                        f"(status: {response.status_code})"
-                    )
-                    return False
-            else:
-                # If no status_code attribute, assume success if no exception
-                logger.info(f"Posted vCon {vcon.uuid} to {self.url}")
+            if response.status_code >= 200 and response.status_code < 300:
+                logger.info(
+                    f"Successfully posted vCon {vcon.uuid} "
+                    f"(status: {response.status_code})"
+                )
                 return True
+            else:
+                logger.error(
+                    f"Failed to post vCon {vcon.uuid} "
+                    f"(status: {response.status_code}, response: {response.text[:200]})"
+                )
+                return False
                 
         except Exception as e:
             logger.error(f"Error posting vCon {vcon.uuid} to {self.url}: {e}")
