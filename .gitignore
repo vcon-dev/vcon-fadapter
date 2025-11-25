@@ -103,3 +103,5 @@ npm-debug.log
 yarn-error.log
 # End Generation Here
 ```
+.fax_adapter_state.json
+.test_state.json

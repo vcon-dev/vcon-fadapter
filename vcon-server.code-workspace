@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../../../../opt/vcon-server"
+		},
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {}
+}

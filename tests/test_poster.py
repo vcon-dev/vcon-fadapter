@@ -34,6 +34,7 @@ class TestHttpPoster:
             assert result is True
             mock_post.assert_called_once_with(
                 poster.url,
+                params={},
                 data=mock_vcon.to_json.return_value,
                 headers=poster.headers,
                 timeout=30
@@ -151,6 +152,7 @@ class TestHttpPoster:
             
             mock_post.assert_called_once_with(
                 url,
+                params={},
                 data=mock_vcon.to_json.return_value,
                 headers={},
                 timeout=30
@@ -167,4 +169,52 @@ class TestHttpPoster:
             
             call_args = mock_post.call_args
             assert call_args[1]["headers"] == headers
+    
+    def test_post_with_ingress_lists(self, mock_vcon):
+        """Test post with ingress_lists query parameter."""
+        ingress_lists = ["fax_processing", "main_ingress"]
+        poster = HttpPoster(
+            url="http://test.com/api/vcon",
+            headers={"Content-Type": "application/json"},
+            ingress_lists=ingress_lists
+        )
+        with patch("fax_adapter.poster.requests.post") as mock_post:
+            mock_post.return_value = Mock(status_code=201)
+            
+            result = poster.post(mock_vcon)
+            
+            assert result is True
+            call_args = mock_post.call_args
+            assert call_args[1]["params"] == {"ingress_lists": "fax_processing,main_ingress"}
+    
+    def test_post_without_ingress_lists(self, mock_vcon):
+        """Test post without ingress_lists."""
+        poster = HttpPoster(
+            url="http://test.com/api/vcon",
+            headers={"Content-Type": "application/json"}
+        )
+        with patch("fax_adapter.poster.requests.post") as mock_post:
+            mock_post.return_value = Mock(status_code=201)
+            
+            result = poster.post(mock_vcon)
+            
+            assert result is True
+            call_args = mock_post.call_args
+            assert call_args[1]["params"] == {}
+    
+    def test_post_with_empty_ingress_lists(self, mock_vcon):
+        """Test post with empty ingress_lists."""
+        poster = HttpPoster(
+            url="http://test.com/api/vcon",
+            headers={"Content-Type": "application/json"},
+            ingress_lists=[]
+        )
+        with patch("fax_adapter.poster.requests.post") as mock_post:
+            mock_post.return_value = Mock(status_code=201)
+            
+            result = poster.post(mock_vcon)
+            
+            assert result is True
+            call_args = mock_post.call_args
+            assert call_args[1]["params"] == {}
 

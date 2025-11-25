@@ -31,7 +31,11 @@ class FaxAdapter:
         # Initialize components
         self.parser = FilenameParser(config.get_filename_regex())
         self.builder = VconBuilder()
-        self.poster = HttpPoster(config.conserver_url, config.get_headers())
+        self.poster = HttpPoster(
+            config.conserver_url, 
+            config.get_headers(), 
+            config.ingress_lists
+        )
         self.tracker = StateTracker(config.state_file)
         self.monitor = FileSystemMonitor(
             config.watch_directory,

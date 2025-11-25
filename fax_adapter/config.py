@@ -59,6 +59,14 @@ class Config:
         # Process existing files
         process_existing_str = os.getenv("PROCESS_EXISTING", "true").lower()
         self.process_existing = process_existing_str in ("true", "1", "yes")
+        
+        # Ingress lists for vCon routing
+        ingress_lists_str = os.getenv("INGRESS_LISTS", "")
+        self.ingress_lists = [
+            item.strip() 
+            for item in ingress_lists_str.split(",") 
+            if item.strip()
+        ]
     
     def get_headers(self) -> Dict[str, str]:
         """Get HTTP headers for conserver requests."""

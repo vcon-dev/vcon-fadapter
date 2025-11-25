@@ -44,13 +44,15 @@ class TestConfig:
             "CONSERVER_URL": "http://test.com"
         }
         with patch.dict(os.environ, minimal_vars, clear=True):
-            config = Config()
-            assert config.conserver_header_name == "x-conserver-api-token"
-            assert config.delete_after_send is False
-            assert config.process_existing is True
-            assert config.state_file == ".fax_adapter_state.json"
-            assert config.poll_interval == 1.0
-            assert "jpg" in config.supported_formats
+            with patch("fax_adapter.config.load_dotenv", MagicMock()):
+                config = Config()
+                assert config.conserver_header_name == "x-conserver-api-token"
+                assert config.delete_after_send is False
+                assert config.process_existing is True
+                assert config.state_file == ".fax_adapter_state.json"
+                assert config.poll_interval == 1.0
+                assert "jpg" in config.supported_formats
+                assert config.ingress_lists == []
     
     def test_config_custom_values(self, env_vars):
         """Test config with custom values."""
@@ -160,4 +162,40 @@ class TestConfig:
             config = Config(env_file=env_file)
             assert config.watch_directory == env_vars["WATCH_DIRECTORY"]
             assert config.conserver_url == env_vars["CONSERVER_URL"]
+    
+    def test_config_ingress_lists_empty(self, env_vars):
+        """Test ingress_lists with empty value."""
+        env_vars["INGRESS_LISTS"] = ""
+        with patch.dict(os.environ, env_vars, clear=True):
+            config = Config()
+            assert config.ingress_lists == []
+    
+    def test_config_ingress_lists_single(self, env_vars):
+        """Test ingress_lists with single value."""
+        env_vars["INGRESS_LISTS"] = "fax_processing"
+        with patch.dict(os.environ, env_vars, clear=True):
+            config = Config()
+            assert config.ingress_lists == ["fax_processing"]
+    
+    def test_config_ingress_lists_multiple(self, env_vars):
+        """Test ingress_lists with multiple values."""
+        env_vars["INGRESS_LISTS"] = "fax_processing,main_ingress,backup_queue"
+        with patch.dict(os.environ, env_vars, clear=True):
+            config = Config()
+            assert config.ingress_lists == ["fax_processing", "main_ingress", "backup_queue"]
+    
+    def test_config_ingress_lists_with_spaces(self, env_vars):
+        """Test ingress_lists with spaces around values."""
+        env_vars["INGRESS_LISTS"] = " fax_processing , main_ingress , backup_queue "
+        with patch.dict(os.environ, env_vars, clear=True):
+            config = Config()
+            assert config.ingress_lists == ["fax_processing", "main_ingress", "backup_queue"]
+    
+    def test_config_ingress_lists_not_set(self, env_vars):
+        """Test ingress_lists when not set."""
+        env_vars.pop("INGRESS_LISTS", None)
+        with patch.dict(os.environ, env_vars, clear=True):
+            with patch("fax_adapter.config.load_dotenv", MagicMock()):
+                config = Config()
+                assert config.ingress_lists == []
 

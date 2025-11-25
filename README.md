@@ -83,6 +83,7 @@ cp .env.example .env
 
 - `CONSERVER_API_TOKEN`: API token for authentication (if required)
 - `CONSERVER_HEADER_NAME`: Header name for API token (default: `x-conserver-api-token`)
+- `INGRESS_LISTS`: Comma-separated list of ingress queue names to route vCons to (e.g., `fax_processing,main_ingress`)
 - `FILENAME_PATTERN`: Regex pattern for parsing filenames (default: `(\d+)_(\d+)\.(jpg|jpeg|png|gif|tiff|tif|bmp|webp)`)
 - `SUPPORTED_FORMATS`: Comma-separated list of image extensions (default: `jpg,jpeg,png,gif,tiff,tif,bmp,webp`)
 - `DELETE_AFTER_SEND`: Delete files after successful HTTP post (default: `false`)
@@ -127,6 +128,7 @@ You can customize the filename pattern using the `FILENAME_PATTERN` environment 
 WATCH_DIRECTORY=/var/fax/incoming
 CONSERVER_URL=http://localhost:8000/api/vcon
 CONSERVER_API_TOKEN=my-secret-token
+INGRESS_LISTS=fax_processing,main_ingress
 DELETE_AFTER_SEND=true
 PROCESS_EXISTING=true
 ```
@@ -148,7 +150,7 @@ PROCESS_EXISTING=true
      - Sender and receiver phone numbers
    - Creation time set from file modification time
 
-4. **HTTP Posting**: The vCon is posted to the configured conserver endpoint with authentication headers.
+4. **HTTP Posting**: The vCon is posted to the configured conserver endpoint with authentication headers. If ingress lists are configured, the vCon is automatically routed to the specified processing queues.
 
 5. **State Tracking**: Processed files are tracked in a JSON state file to prevent reprocessing.
 
