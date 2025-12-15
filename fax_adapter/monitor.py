@@ -107,3 +107,5 @@ class FileSystemMonitor:
         logger.info(f"Found {len(existing_files)} existing image files")
         return existing_files
 
+
+

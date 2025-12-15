@@ -11,6 +11,7 @@ from fax_adapter.builder import VconBuilder
 from fax_adapter.poster import HttpPoster
 from fax_adapter.tracker import StateTracker
 from fax_adapter.monitor import FileSystemMonitor
+from fax_adapter.s3_monitor import S3Monitor
 
 
 # Configure logging
@@ -37,16 +38,34 @@ class FaxAdapter:
             config.ingress_lists
         )
         self.tracker = StateTracker(config.state_file)
-        self.monitor = FileSystemMonitor(
-            config.watch_directory,
-            config.supported_formats,
-            self._process_file
-        )
+        
+        # Initialize appropriate monitor based on source type
+        if config.source_type == "filesystem":
+            self.monitor = FileSystemMonitor(
+                config.watch_directory,
+                config.supported_formats,
+                self._process_file
+            )
+        elif config.source_type == "s3":
+            self.monitor = S3Monitor(
+                config.s3_bucket_name,
+                config.s3_prefix,
+                config.supported_formats,
+                self._process_file_s3,
+                region=config.s3_region,
+                credentials=config.get_aws_credentials(),
+                poll_interval=config.s3_poll_interval,
+                date_filter=config.s3_date_filter,
+                date_range_start=config.s3_date_range_start,
+                date_range_end=config.s3_date_range_end,
+            )
+        else:
+            raise ValueError(f"Invalid source type: {config.source_type}")
         
         self.running = False
     
     def _process_file(self, filepath: str):
-        """Process a single image file.
+        """Process a single image file from filesystem.
         
         Args:
             filepath: Path to the image file
@@ -89,8 +108,50 @@ class FaxAdapter:
             self.tracker.mark_processed(filepath, vcon.uuid, "failed")
             logger.error(f"Failed to post vCon for: {filepath}")
     
+    def _process_file_s3(self, filepath: str, s3_key: str):
+        """Process a single image file from S3.
+        
+        Args:
+            filepath: Local path to downloaded temp file
+            s3_key: S3 object key
+        """
+        # Check if already processed
+        if self.tracker.is_processed(filepath, s3_key=s3_key):
+            logger.debug(f"Skipping already processed S3 object: {s3_key}")
+            return
+        
+        # Parse filename from S3 key
+        parsed = self.parser.parse(s3_key)
+        if not parsed:
+            logger.warning(f"Could not parse S3 key: {s3_key}")
+            return
+        
+        sender, receiver, extension = parsed
+        
+        # Build vCon from local temp file
+        vcon = self.builder.build(filepath, sender, receiver, extension)
+        if not vcon:
+            logger.error(f"Failed to build vCon from S3 object: {s3_key}")
+            return
+        
+        # Post to conserver
+        success = self.poster.post(vcon)
+        
+        if success:
+            # Mark as processed
+            self.tracker.mark_processed(filepath, vcon.uuid, "success", s3_key=s3_key)
+            
+            # Delete S3 object if configured
+            if self.config.s3_delete_after_send:
+                if isinstance(self.monitor, S3Monitor):
+                    self.monitor.delete_s3_object(s3_key)
+        else:
+            # Mark as failed but don't delete
+            self.tracker.mark_processed(filepath, vcon.uuid, "failed", s3_key=s3_key)
+            logger.error(f"Failed to post vCon for S3 object: {s3_key}")
+    
     def process_existing_files(self):
-        """Process existing files in the watch directory."""
+        """Process existing files in the watch directory or S3 bucket."""
         if not self.config.process_existing:
             logger.info("Skipping existing files (PROCESS_EXISTING=false)")
             return
@@ -98,8 +159,14 @@ class FaxAdapter:
         logger.info("Processing existing files...")
         existing_files = self.monitor.get_existing_files()
         
-        for filepath in existing_files:
-            self._process_file(filepath)
+        if self.config.source_type == "filesystem":
+            for filepath in existing_files:
+                self._process_file(filepath)
+        elif self.config.source_type == "s3":
+            # For S3, existing_files contains S3 keys
+            for s3_key in existing_files:
+                if isinstance(self.monitor, S3Monitor):
+                    self.monitor._process_object(s3_key)
         
         logger.info(f"Finished processing {len(existing_files)} existing files")
     
@@ -166,4 +233,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 

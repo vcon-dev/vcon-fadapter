@@ -82,7 +82,11 @@ class VconBuilder:
             vcon = Vcon.build_new()
             
             # Set creation time from file modification time
-            vcon.vcon_dict["created_at"] = creation_time.isoformat()
+            try:
+                vcon.created_at = creation_time.isoformat()
+            except AttributeError:
+                # Some vcon versions have created_at as read-only
+                logger.debug("Could not set created_at attribute (read-only in this vcon version)")
             
             # Add parties
             sender_party = Party(tel=sender)
@@ -97,16 +101,31 @@ class VconBuilder:
             mime_type = MIME_TYPES.get(extension.lower(), "image/jpeg")
             
             # Add image as attachment
-            vcon.add_attachment(
-                type="fax_image",
-                body=image_base64,
-                encoding="base64"
-            )
-            
-            # Add filename and mimetype to the attachment dictionary
-            attachment = vcon.vcon_dict["attachments"][-1]
-            attachment["filename"] = path.name
-            attachment["mimetype"] = mime_type
+            # Try different parameter combinations for compatibility with various vcon library versions
+            try:
+                vcon.add_attachment(
+                    type="fax_image",
+                    body=image_base64,
+                    encoding="base64",
+                    filename=path.name,
+                    mimetype=mime_type
+                )
+            except TypeError:
+                try:
+                    # Try without filename
+                    vcon.add_attachment(
+                        type="fax_image",
+                        body=image_base64,
+                        encoding="base64",
+                        mimetype=mime_type
+                    )
+                except TypeError:
+                    # Fall back to minimal parameters with type
+                    vcon.add_attachment(
+                        type="fax_image",
+                        body=image_base64,
+                        encoding="base64"
+                    )
             
             # Add metadata tags
             vcon.add_tag("source", "fax_adapter")

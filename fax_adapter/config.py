@@ -2,6 +2,7 @@
 
 import os
 import re
+from datetime import datetime
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 
@@ -16,11 +17,43 @@ class Config:
         else:
             load_dotenv()
         
-        # Required settings
-        self.watch_directory = os.getenv("WATCH_DIRECTORY")
-        if not self.watch_directory:
-            raise ValueError("WATCH_DIRECTORY environment variable is required")
+        # Source type selection
+        self.source_type = os.getenv("SOURCE_TYPE", "filesystem").lower()
+        if self.source_type not in ("filesystem", "s3"):
+            raise ValueError(f"SOURCE_TYPE must be 'filesystem' or 's3', got: {self.source_type}")
         
+        # Filesystem settings (required when SOURCE_TYPE=filesystem)
+        self.watch_directory = os.getenv("WATCH_DIRECTORY")
+        if self.source_type == "filesystem" and not self.watch_directory:
+            raise ValueError("WATCH_DIRECTORY is required when SOURCE_TYPE=filesystem")
+        
+        # S3 settings (required when SOURCE_TYPE=s3)
+        self.s3_bucket_name = os.getenv("S3_BUCKET_NAME")
+        if self.source_type == "s3" and not self.s3_bucket_name:
+            raise ValueError("S3_BUCKET_NAME is required when SOURCE_TYPE=s3")
+        
+        self.s3_prefix = os.getenv("S3_PREFIX", "")
+        self.s3_region = os.getenv("S3_REGION")
+        
+        # AWS credentials (optional, will use boto3 default chain if not provided)
+        self.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+        self.aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+        self.aws_session_token = os.getenv("AWS_SESSION_TOKEN")
+        
+        # S3 date filtering
+        self.s3_date_filter = os.getenv("S3_DATE_FILTER")
+        self.s3_date_range_start = os.getenv("S3_DATE_RANGE_START")
+        self.s3_date_range_end = os.getenv("S3_DATE_RANGE_END")
+        
+        # Validate date formats if provided
+        self._validate_date_filters()
+        
+        # S3-specific behavior
+        self.s3_poll_interval = float(os.getenv("S3_POLL_INTERVAL", "30.0"))
+        s3_delete_str = os.getenv("S3_DELETE_AFTER_SEND", "false").lower()
+        self.s3_delete_after_send = s3_delete_str in ("true", "1", "yes")
+        
+        # Conserver settings (required)
         self.conserver_url = os.getenv("CONSERVER_URL")
         if not self.conserver_url:
             raise ValueError("CONSERVER_URL environment variable is required")
@@ -78,4 +111,60 @@ class Config:
     def get_filename_regex(self) -> re.Pattern:
         """Get compiled regex pattern for filename parsing."""
         return re.compile(self.filename_pattern, re.IGNORECASE)
+    
+    def get_aws_credentials(self) -> Optional[Dict[str, str]]:
+        """Get AWS credentials if provided, otherwise None (uses boto3 default chain)."""
+        if self.aws_access_key_id and self.aws_secret_access_key:
+            creds = {
+                "aws_access_key_id": self.aws_access_key_id,
+                "aws_secret_access_key": self.aws_secret_access_key,
+            }
+            if self.aws_session_token:
+                creds["aws_session_token"] = self.aws_session_token
+            return creds
+        return None
+    
+    def _validate_date_filters(self):
+        """Validate date filter formats."""
+        date_formats = ["%Y/%m/%d", "%Y-%m-%d", "%Y%m%d"]
+        
+        if self.s3_date_filter:
+            self._validate_date_string(self.s3_date_filter, "S3_DATE_FILTER", date_formats)
+        
+        if self.s3_date_range_start:
+            self._validate_date_string(
+                self.s3_date_range_start, "S3_DATE_RANGE_START", date_formats
+            )
+        
+        if self.s3_date_range_end:
+            self._validate_date_string(
+                self.s3_date_range_end, "S3_DATE_RANGE_END", date_formats
+            )
+        
+        # Validate that start is before end if both provided
+        if self.s3_date_range_start and self.s3_date_range_end:
+            start = self._parse_date_string(self.s3_date_range_start, date_formats)
+            end = self._parse_date_string(self.s3_date_range_end, date_formats)
+            if start > end:
+                raise ValueError(
+                    "S3_DATE_RANGE_START must be before or equal to S3_DATE_RANGE_END"
+                )
+    
+    def _validate_date_string(self, date_str: str, var_name: str, formats: List[str]):
+        """Validate that a date string matches one of the expected formats."""
+        if not self._parse_date_string(date_str, formats):
+            raise ValueError(
+                f"{var_name} must be in format YYYY/MM/DD, YYYY-MM-DD, or YYYYMMDD"
+            )
+    
+    def _parse_date_string(self, date_str: str, formats: List[str]) -> Optional[datetime]:
+        """Parse date string using multiple formats."""
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+        return None
+
+
 
